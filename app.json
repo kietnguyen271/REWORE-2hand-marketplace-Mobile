@@ -20,6 +20,22 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "scheme": "rewore",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "REWORE can access your photos so you can upload product and ID images.",
+          "cameraPermission": "REWORE can access your camera so you can capture product and ID images.",
+          "microphonePermission": false
+        }
+      ]
+    ]
   }
 }
