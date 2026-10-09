@@ -1,3 +1,3 @@
-import { ShopScreen } from '@/screens/buyer/ShopScreen';
+import { ExploreScreen } from '@/screens/buyer/ExploreScreen';
 
-export default ShopScreen;
+export default ExploreScreen;

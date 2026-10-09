@@ -18,6 +18,7 @@ export type User = {
   email: string;
   fullName?: string;
   name?: string;
+  avatar?: string;
   phone?: string;
   role: UserRole;
   isEmailVerified?: boolean;
@@ -65,6 +66,7 @@ export type Product = {
   sellerId?: string;
   seller?: SellerProfile & { id?: string; userId?: string };
   shop?: SellerProfile;
+  createdAt?: string;
 };
 
 export type CartItem = {

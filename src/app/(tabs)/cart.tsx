@@ -1,3 +1,3 @@
-import { CartScreen } from '@/screens/buyer/CartScreen';
+import { ChatScreen } from '@/screens/buyer/ChatScreen';
 
-export default CartScreen;
+export default ChatScreen;

@@ -16,6 +16,7 @@ export const colors = {
 
 export const typography = {
   heading: Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia' }),
+  body: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
 };
 
 export const spacing = {
