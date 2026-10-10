@@ -514,58 +514,43 @@ export function HomeScreen() {
           />
         }
       >
-        {/* ── App Bar ── */}
-        <View style={[sty.appBar, { paddingTop: insets.top + 6 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={sty.logo}>REWORE.</Text>
-            {isGuest && (
-              <View style={sty.guestBadge}>
-                <Text style={sty.guestBadgeText}>GUEST</Text>
-              </View>
-            )}
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <TouchableOpacity style={sty.iconBtn} onPress={() => openGate('Tìm kiếm')} activeOpacity={0.8}>
-              <Search size={19} color="#231A11" strokeWidth={1.9} />
-            </TouchableOpacity>
-            {isGuest && (
-              <>
-                <TouchableOpacity
-                  style={sty.loginBtn}
-                  activeOpacity={0.8}
-                  onPress={() => router.push('/(auth)/login')}
-                >
-                  <Text style={sty.loginBtnText}>Log in</Text>
-                </TouchableOpacity>
+        {/* ══════════ HERO HEADER ══════════ */}
+        <View style={[sty.heroHeader, { paddingTop: insets.top }]}>
+          {/* Top bar: logo + actions */}
+          <View style={sty.topBar}>
+            {/* Left: logo */}
+            <View>
+              <Text style={sty.logo}>REWORE<Text style={sty.logoDot}>.</Text></Text>
+              {isGuest ? (
+                <Text style={sty.logoTagline}>Curated Secondhand Fashion</Text>
+              ) : (
+                <Text style={sty.logoTagline}>Xin chào, {user?.fullName?.split(' ').pop() || 'bạn'} 👋</Text>
+              )}
+            </View>
+
+            {/* Right: search + auth */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TouchableOpacity
+                style={sty.iconBtn}
+                onPress={() => openGate('Tìm kiếm')}
+                activeOpacity={0.8}
+              >
+                <Search size={18} color="#231A11" strokeWidth={2} />
+              </TouchableOpacity>
+
+              {isGuest ? (
                 <TouchableOpacity
                   style={sty.signupBtn}
                   activeOpacity={0.85}
                   onPress={() => router.push('/(auth)/register')}
                 >
-                  <Text style={sty.signupBtnText}>Sign up</Text>
+                  <Text style={sty.signupBtnText}>Join free</Text>
                 </TouchableOpacity>
-              </>
-            )}
+              ) : null}
+            </View>
           </View>
-        </View>
 
-        {/* ── Guest Banner ── */}
-        {isGuest && (
-          <TouchableOpacity
-            style={sty.guestBanner}
-            onPress={() => openGate('Giữ hàng & Đấu giá')}
-            activeOpacity={0.85}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Lock size={14} color="#974226" strokeWidth={2} />
-              <Text style={sty.guestBannerText}>Đăng nhập để giữ hàng, đặt giá & bán</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-              <Text style={sty.guestBannerLink}>Log in</Text>
-              <ChevronRight size={13} color="#974226" strokeWidth={2.5} />
-            </View>
-          </TouchableOpacity>
-        )}
+        </View>
 
         {/* ── Content Sections ── */}
         {renderForYouHeader()}
@@ -589,86 +574,82 @@ const CARD_W = (SW - 16 * 2 - 10) / 2;
 const sty = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFF8F5' },
 
-  // App Bar
-  appBar: {
+  // ── Hero Header ──
+  heroHeader: {
+    backgroundColor: '#FFF8F5',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EDD8C8',
+    // Subtle warm shadow at bottom
+    shadowColor: '#8B4513',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: '#FFF8F5',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2DFD1',
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   logo: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: '#231A11',
-    letterSpacing: 1.5,
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#1A0F08',
+    letterSpacing: 2.5,
+    lineHeight: 30,
   },
-  guestBadge: {
-    backgroundColor: '#FEEADC',
-    borderRadius: 99,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  logoDot: {
+    color: '#974226',
+    fontSize: 26,
   },
-  guestBadgeText: {
+  logoTagline: {
     fontSize: 10,
-    fontWeight: '700',
-    color: '#55433D',
+    color: '#88726C',
+    fontWeight: '500',
     letterSpacing: 0.8,
+    marginTop: 1,
+    textTransform: 'uppercase',
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F2DFD1',
-  },
-  loginBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  loginBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#231A11',
+    borderWidth: 1,
+    borderColor: '#E8D0BE',
   },
   signupBtn: {
     backgroundColor: '#974226',
     borderRadius: 99,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    shadowColor: '#974226',
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   signupBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '800',
     color: '#fff',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
 
-  // Guest Banner
-  guestBanner: {
-    backgroundColor: '#FFF1E8',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FEEADC',
-  },
-  guestBannerText: {
-    fontSize: 12,
-    color: '#55433D',
-    fontWeight: '500',
-  },
-  guestBannerLink: {
-    fontSize: 12,
-    color: '#974226',
-    fontWeight: '700',
-  },
+
+  guestBadge: { display: 'none' },
+  guestBadgeText: { display: 'none' },
+  loginBtn: { display: 'none' },
+  loginBtnText: { display: 'none' },
+  guestBanner: { display: 'none' },
+  guestBannerText: { display: 'none' },
+  guestBannerLink: { display: 'none' },
+  appBar: { display: 'none' },
 
   // Generic section
   section: { marginTop: 16 },
