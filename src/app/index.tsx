@@ -1,8 +1,8 @@
 import { Redirect } from 'expo-router';
-import { useAuthStore } from '@/stores/authStore';
 
+// Always go to the tabs shell. The Home tab supports guest mode
+// (shows content, gates actions behind login). Auth-required tabs
+// prevent navigation via tabPress listener + show lock badges.
 export default function IndexRoute() {
-  const user = useAuthStore((state) => state.user);
-
-  return <Redirect href={user ? '/(tabs)' : '/(auth)/login'} />;
+  return <Redirect href="/(tabs)" />;
 }

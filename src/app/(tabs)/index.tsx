@@ -1,3 +1,3 @@
-import { ExploreScreen } from '@/screens/buyer/ExploreScreen';
+import { HomeScreen } from '@/screens/buyer/HomeScreen';
 
-export default ExploreScreen;
+export default HomeScreen;
