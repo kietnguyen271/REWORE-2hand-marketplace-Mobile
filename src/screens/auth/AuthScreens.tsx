@@ -197,7 +197,7 @@ export function RegisterScreen() {
     if (password !== confirmPw) { show('Mật khẩu xác nhận không khớp.', 'error'); return; }
     if (!agreed) { show('Vui lòng đồng ý với điều khoản sử dụng.', 'error'); return; }
     try {
-      await register({ fullName, email: email.trim(), phone, password });
+      await register({ name: fullName, email: email.trim(), password });
       show('Đăng ký thành công! Vui lòng xác thực OTP.', 'success');
       router.replace({ pathname: '/(auth)/verify-otp', params: { email } });
     } catch (error) { show(getErrorMessage(error), 'error'); }

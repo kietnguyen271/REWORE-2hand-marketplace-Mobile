@@ -29,18 +29,34 @@ export function normalizeList<T>(payload: unknown): T[] {
 
 export function getErrorMessage(error: unknown) {
   if (error && typeof error === 'object') {
-    const response = (error as { response?: { data?: unknown } }).response;
-    const data = response?.data;
+    const axiosError = error as { response?: { data?: unknown }; code?: string; message?: string };
+
+    // Network error (backend not reachable)
+    if (!axiosError.response && axiosError.code === 'ERR_NETWORK') {
+      return 'Không thể kết nối server. Vui lòng kiểm tra mạng.';
+    }
+    if (!axiosError.response && axiosError.code === 'ECONNABORTED') {
+      return 'Server phản hồi quá chậm. Vui lòng thử lại.';
+    }
+
+    const data = axiosError.response?.data;
     if (data && typeof data === 'object') {
       const record = data as Record<string, unknown>;
-      const value = record.message ?? record.error;
-      if (typeof value === 'string') {
-        return value;
+
+      // Standard message field
+      if (typeof record.message === 'string') return record.message;
+      if (typeof record.error === 'string') return record.error;
+
+      // Zod validation errors array
+      if (record.errors && typeof record.errors === 'object') {
+        const errs = record.errors as Record<string, string[]>;
+        const first = Object.values(errs)[0];
+        if (Array.isArray(first) && first.length > 0) return first[0];
       }
     }
   }
 
-  return 'Co loi xay ra. Vui long thu lai.';
+  return 'Có lỗi xảy ra. Vui lòng thử lại.';
 }
 
 export function compactParams(params: Record<string, string | number | undefined | null>) {
