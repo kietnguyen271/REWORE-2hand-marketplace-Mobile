@@ -2,7 +2,7 @@
  * REWORE Mobile – Auth Screens
  * Design: UI/18 (Login) · UI/19 (Register)
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -34,6 +34,7 @@ import {
   Store,
   User,
 } from 'lucide-react-native';
+import { authApi } from '@/api/endpoints';
 import { useAuthStore } from '@/stores/authStore';
 import { useToastStore } from '@/stores/toastStore';
 import { getErrorMessage } from '@/utils/format';
@@ -161,7 +162,7 @@ export function LoginScreen() {
               <Field label="Mật khẩu" value={password} onChangeText={setPassword} placeholder="••••••••" icon={Lock} secure />
             </View>
             <View style={sty.optionsRow}>
-              <View /><TouchableOpacity><Text style={sty.forgotText}>Quên mật khẩu?</Text></TouchableOpacity>
+              <View /><TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}><Text style={sty.forgotText}>Quên mật khẩu?</Text></TouchableOpacity>
             </View>
             <PrimaryBtn title="Đăng nhập" onPress={submit} loading={loading} />
             <OrDivider />
@@ -284,6 +285,141 @@ export function VerifyOtpScreen({ initialEmail }: { initialEmail?: string }) {
           <View style={sty.footer}>
             <Text style={sty.footerText}>Tài khoản chưa xác thực sẽ được chuyển về màn hình này sau khi đăng nhập.</Text>
           </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+type ForgotStep = 'email' | 'otp' | 'password' | 'done';
+const RESEND_SECONDS = 60;
+
+export function ForgotPasswordScreen() {
+  const show = useToastStore(s => s.show);
+  const [step, setStep] = useState<ForgotStep>('email');
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown(v => v - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
+  const run = async (task: () => Promise<void>) => {
+    setBusy(true);
+    try { await task(); }
+    catch (error) { show(getErrorMessage(error), 'error'); }
+    finally { setBusy(false); }
+  };
+
+  const sendCode = () => {
+    if (!email.trim()) { show('Vui lòng nhập email.', 'error'); return; }
+    return run(async () => {
+      await authApi.forgotPassword({ email: email.trim() });
+      setOtp('');
+      setCooldown(RESEND_SECONDS);
+      setStep('otp');
+      show('Nếu email tồn tại, mã xác thực đã được gửi.', 'success');
+    });
+  };
+
+  const verifyCode = () => {
+    if (!/^\d{6}$/.test(otp.trim())) { show('Mã OTP gồm 6 chữ số.', 'error'); return; }
+    return run(async () => {
+      const result = await authApi.verifyResetOtp({ email: email.trim(), otp: otp.trim() });
+      setResetToken(result.resetToken);
+      setStep('password');
+    });
+  };
+
+  const resend = () => {
+    if (cooldown > 0) return;
+    return run(async () => {
+      await authApi.forgotPassword({ email: email.trim() });
+      setOtp('');
+      setCooldown(RESEND_SECONDS);
+      show('Đã gửi lại mã.', 'success');
+    });
+  };
+
+  const savePassword = () => {
+    if (password.length < 8) { show('Mật khẩu tối thiểu 8 ký tự.', 'error'); return; }
+    if (password !== confirmPw) { show('Mật khẩu xác nhận không khớp.', 'error'); return; }
+    return run(async () => {
+      await authApi.resetPassword({ token: resetToken, password });
+      setStep('done');
+    });
+  };
+
+  const titles: Record<ForgotStep, { title: string; sub: string }> = {
+    email: { title: 'Quên mật khẩu?', sub: 'Nhập email để nhận mã xác thực 6 số.' },
+    otp: { title: 'Kiểm tra email', sub: `Mã 6 số đã được gửi tới ${email.trim()}. Mã hết hạn sau 5 phút.` },
+    password: { title: 'Mật khẩu mới', sub: 'Chọn mật khẩu bạn chưa dùng trước đây.' },
+    done: { title: 'Đã đổi mật khẩu', sub: 'Bạn có thể đăng nhập bằng mật khẩu mới.' },
+  };
+
+  return (
+    <View style={sty.root}>
+      <StatusBar barStyle="dark-content" />
+      <AuthHeader />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={sty.scroll} keyboardShouldPersistTaps="handled">
+          <HeroStrip quote='"Xác thực để bảo vệ tài khoản của bạn."' />
+          <View style={sty.card}>
+            <Text style={sty.cardTitle}>{titles[step].title}</Text>
+            <Text style={sty.cardSub}>{titles[step].sub}</Text>
+
+            {step === 'email' && (
+              <>
+                <View style={{ marginTop: 18, marginBottom: 18 }}>
+                  <Field label="Email" value={email} onChangeText={setEmail} placeholder="name@example.com" icon={Mail} keyboardType="email-address" />
+                </View>
+                <PrimaryBtn title="Gửi mã" onPress={sendCode} loading={busy} />
+              </>
+            )}
+
+            {step === 'otp' && (
+              <>
+                <View style={{ marginTop: 18, marginBottom: 18 }}>
+                  <Field label="Mã xác thực" value={otp} onChangeText={t => setOtp(t.replace(/\D/g, '').slice(0, 6))} placeholder="123456" keyboardType="number-pad" />
+                </View>
+                <PrimaryBtn title="Xác nhận mã" onPress={verifyCode} loading={busy} />
+                <TouchableOpacity style={sty.resendBtn} onPress={resend} activeOpacity={0.7} disabled={cooldown > 0 || busy}>
+                  <Text style={sty.resendText}>{cooldown > 0 ? `Gửi lại mã sau 00:${String(cooldown).padStart(2, '0')}` : 'Gửi lại mã'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={sty.resendBtn} onPress={() => setStep('email')} activeOpacity={0.7}>
+                  <Text style={sty.resendText}>Dùng email khác</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {step === 'password' && (
+              <>
+                <View style={{ gap: 14, marginTop: 18, marginBottom: 18 }}>
+                  <Field label="Mật khẩu mới" value={password} onChangeText={setPassword} placeholder="••••••••" icon={Lock} secure hint="Tối thiểu 8 ký tự" />
+                  <Field label="Xác nhận mật khẩu" value={confirmPw} onChangeText={setConfirmPw} placeholder="••••••••" icon={Lock} secure />
+                </View>
+                <PrimaryBtn title="Đổi mật khẩu" onPress={savePassword} loading={busy} />
+              </>
+            )}
+
+            {step === 'done' && (
+              <View style={{ marginTop: 18 }}>
+                <PrimaryBtn title="Về đăng nhập" onPress={() => router.replace('/(auth)/login')} />
+              </View>
+            )}
+          </View>
+          {step !== 'done' && (
+            <View style={sty.footer}>
+              <Text style={sty.footerText}>Nhớ mật khẩu rồi? <Text style={sty.footerLink} onPress={() => router.replace('/(auth)/login')}>Đăng nhập</Text></Text>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

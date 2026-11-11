@@ -13,84 +13,11 @@ import { colors } from '@/components/theme';
 import { canSeller, isSellerOwner, sellerIdFor, useAuthStore } from '@/stores/authStore';
 import { useToastStore } from '@/stores/toastStore';
 import type { Auction, Order, PickedImage, Product, ProductCondition, SellerPermission } from '@/types/domain';
-import { appendFile, appendFiles } from '@/utils/images';
-import { formatVnd, getErrorMessage, hasVerifiedEmail, normalizeList } from '@/utils/format';
+import { appendFiles } from '@/utils/images';
+import { formatVnd, getErrorMessage, normalizeList } from '@/utils/format';
 import { OrdersScreen } from '@/screens/buyer/OrdersScreen';
 
 const permissions: SellerPermission[] = ['VIEW_DASHBOARD', 'MANAGE_PRODUCTS', 'MANAGE_ORDERS', 'MANAGE_AUCTIONS'];
-
-export function SellerApplicationScreen() {
-  const user = useAuthStore((state) => state.user);
-  const show = useToastStore((state) => state.show);
-  const [form, setForm] = useState({
-    shopName: '',
-    legalName: '',
-    phone: '',
-    pickupAddress: '',
-    bankName: '',
-    bankAccountNumber: '',
-    bankAccountHolder: '',
-    vietQr: '',
-    sellingDescription: '',
-    acceptedSellerTerms: false,
-  });
-  const [front, setFront] = useState<PickedImage | null>(null);
-  const [back, setBack] = useState<PickedImage | null>(null);
-  const [selfie, setSelfie] = useState<PickedImage | null>(null);
-
-  const update = (key: keyof typeof form, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
-
-  const submit = async () => {
-    if (!user || !hasVerifiedEmail(user)) {
-      show('Can verify email truoc khi dang ky seller.', 'error');
-      return;
-    }
-    if (!form.shopName || !form.legalName || !front || !back || !form.phone || !form.pickupAddress || !form.bankAccountNumber || !form.bankAccountHolder || !form.acceptedSellerTerms) {
-      show('Nhap day du thong tin bat buoc va anh CCCD.', 'error');
-      return;
-    }
-
-    const data = new FormData();
-    Object.entries(form).forEach(([key, value]) => data.append(key, String(value)));
-    appendFile(data, 'idCardFrontImage', front);
-    appendFile(data, 'idCardBackImage', back);
-    appendFile(data, 'selfieImage', selfie);
-
-    try {
-      const result = await sellerApi.apply(data);
-      if (result && typeof result === 'object' && 'requiresOtp' in result) {
-        router.push({ pathname: '/(auth)/verify-otp', params: { email: String((result as { email?: string }).email || user.email) } });
-        return;
-      }
-      show('Da gui ho so seller.', 'success');
-      router.back();
-    } catch (error) {
-      show(getErrorMessage(error), 'error');
-    }
-  };
-
-  return (
-    <AppScreen title="Dang ky seller" subtitle="Upload anh CCCD bang file uri that tu ImagePicker.">
-      <TextField label="Ten shop" value={form.shopName} onChangeText={(value) => update('shopName', value)} />
-      <TextField label="Ten phap ly" value={form.legalName} onChangeText={(value) => update('legalName', value)} />
-      <TextField label="So dien thoai" value={form.phone} onChangeText={(value) => update('phone', value)} keyboardType="phone-pad" />
-      <TextField label="Dia chi lay hang" value={form.pickupAddress} onChangeText={(value) => update('pickupAddress', value)} multiline />
-      <ImagePickerField label="CCCD mat truoc" onChange={(images) => setFront(images[0] ?? null)} />
-      <ImagePickerField label="CCCD mat sau" onChange={(images) => setBack(images[0] ?? null)} />
-      <ImagePickerField label="Selfie neu backend ho tro" onChange={(images) => setSelfie(images[0] ?? null)} />
-      <TextField label="Ngan hang" value={form.bankName} onChangeText={(value) => update('bankName', value)} />
-      <TextField label="So tai khoan" value={form.bankAccountNumber} onChangeText={(value) => update('bankAccountNumber', value)} />
-      <TextField label="Chu tai khoan" value={form.bankAccountHolder} onChangeText={(value) => update('bankAccountHolder', value)} />
-      <TextField label="VietQR optional" value={form.vietQr} onChangeText={(value) => update('vietQr', value)} />
-      <TextField label="Mo ta hang ban" value={form.sellingDescription} onChangeText={(value) => update('sellingDescription', value)} multiline />
-      <Pressable style={styles.checkRow} onPress={() => update('acceptedSellerTerms', !form.acceptedSellerTerms)}>
-        <View style={[styles.checkbox, form.acceptedSellerTerms && styles.checked]} />
-        <Text style={{ color: colors.ink, flex: 1 }}>Toi dong y dieu khoan seller REWORE.</Text>
-      </Pressable>
-      <AppButton title="Gui ho so" onPress={submit} />
-    </AppScreen>
-  );
-}
 
 export function SellerStudioScreen() {
   const user = useAuthStore((state) => state.user);

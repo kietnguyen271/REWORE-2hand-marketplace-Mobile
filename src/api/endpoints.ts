@@ -9,6 +9,10 @@ export const authApi = {
   register: (payload: Record<string, unknown>) => api.post('/api/auth/register', payload).then(dataOf),
   verifyOtp: (payload: { email: string; otp: string }) => api.post('/api/auth/verify-otp', payload).then(dataOf),
   resendOtp: (payload: { email: string }) => api.post('/api/auth/resend-otp', payload).then(dataOf),
+  forgotPassword: (payload: { email: string }) => api.post('/api/auth/forgot-password', payload).then(dataOf),
+  verifyResetOtp: (payload: { email: string; otp: string }) =>
+    api.post<{ success: boolean; resetToken: string }>('/api/auth/verify-reset-otp', payload).then(dataOf),
+  resetPassword: (payload: { token: string; password: string }) => api.post('/api/auth/reset-password', payload).then(dataOf),
   login: (payload: { email: string; password: string }) => api.post<LoginResult>('/api/auth/login', payload).then(dataOf),
   me: () => api.get<User | { user: User }>('/api/auth/me').then(dataOf),
   logout: () => api.post('/api/auth/logout').then(dataOf),
@@ -43,8 +47,6 @@ export const ordersApi = {
 };
 
 export const sellerApi = {
-  application: () => api.get('/api/seller/application').then(dataOf),
-  apply: (payload: FormData) => api.post('/api/seller/application', payload).then(dataOf),
   auctionEligibility: () => api.get('/api/seller/auction-eligibility').then(dataOf),
   subscription: () => api.get<Subscription>('/api/seller/subscription').then(dataOf),
   requestSubscription: () => api.post('/api/seller/subscription-requests').then(dataOf),
