@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { auctionsApi, ordersApi, productsApi, sellerApi } from '@/api/endpoints';
 import { AppButton } from '@/components/AppButton';
@@ -10,36 +10,34 @@ import { StatusBadge, statusTone } from '@/components/StatusBadge';
 import { TextField } from '@/components/TextField';
 import { ImagePickerField } from '@/components/ImagePickerField';
 import { colors } from '@/components/theme';
-import { canSeller, isSellerOwner, sellerIdFor, useAuthStore } from '@/stores/authStore';
+import { sellerIdFor, useAuthStore } from '@/stores/authStore';
 import { useToastStore } from '@/stores/toastStore';
-import type { Auction, Order, PickedImage, Product, ProductCondition, SellerPermission } from '@/types/domain';
+import type { Auction, Order, PickedImage, Product, ProductCondition } from '@/types/domain';
 import { appendFiles } from '@/utils/images';
 import { formatVnd, getErrorMessage, normalizeList } from '@/utils/format';
 import { OrdersScreen } from '@/screens/buyer/OrdersScreen';
-
-const permissions: SellerPermission[] = ['VIEW_DASHBOARD', 'MANAGE_PRODUCTS', 'MANAGE_ORDERS', 'MANAGE_AUCTIONS'];
 
 export function SellerStudioScreen() {
   const user = useAuthStore((state) => state.user);
   const show = useToastStore((state) => state.show);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [eligibility, setEligibility] = useState<Record<string, unknown> | null>(null);
-  const [subscription, setSubscription] = useState<Record<string, unknown> | null>(null);
+  const [platformFees, setPlatformFees] = useState<{ rate?: number; total?: number; pendingPayout?: number } | null>(null);
   const sellerId = sellerIdFor(user);
 
   useEffect(() => {
     Promise.allSettled([
       productsApi.list({ sellerId }),
       ordersApi.list('seller'),
-      sellerApi.auctionEligibility(),
-      sellerApi.subscription(),
+      sellerApi.stats(),
     ]).then((results) => {
-      const [productResult, orderResult, eligibilityResult, subscriptionResult] = results;
+      const [productResult, orderResult, statsResult] = results;
       if (productResult.status === 'fulfilled') setProducts(normalizeList<Product>(productResult.value));
       if (orderResult.status === 'fulfilled') setOrders(normalizeList<Order>(orderResult.value));
-      if (eligibilityResult.status === 'fulfilled') setEligibility(eligibilityResult.value as Record<string, unknown>);
-      if (subscriptionResult.status === 'fulfilled') setSubscription(subscriptionResult.value as Record<string, unknown>);
+      if (statsResult.status === 'fulfilled') {
+        const payload = statsResult.value as { data?: { platformFees?: { rate?: number; total?: number }; payout?: { pending?: number } } };
+        setPlatformFees(payload.data?.platformFees ? { ...payload.data.platformFees, pendingPayout: payload.data.payout?.pending } : null);
+      }
       results.filter((result) => result.status === 'rejected').forEach((result) => show(getErrorMessage(result.reason), 'error'));
     });
   }, [sellerId, show]);
@@ -58,7 +56,7 @@ export function SellerStudioScreen() {
   const revenue = orders.reduce((sum, order) => sum + (order.totalAmount || order.total || 0), 0);
 
   return (
-    <AppScreen title="Seller Studio" subtitle={user.sellerStaffAccess ? 'Staff access' : 'Owner workspace'}>
+    <AppScreen title="Seller Studio" subtitle="Quan ly shop">
       <View style={styles.stats}>
         <Stat label="Products" value={products.length} />
         <Stat label="Active" value={activeProducts} />
@@ -70,18 +68,14 @@ export function SellerStudioScreen() {
         <Text style={styles.muted}>Revenue tam tinh tu API orders seller.</Text>
       </Card>
       <Card>
-        <Text style={styles.cardTitle}>Premium</Text>
-        <StatusBadge label={String(subscription?.status || subscription?.plan || 'Chua dang ky')} tone={statusTone(String(subscription?.status || ''))} />
-        {isSellerOwner(user) ? <AppButton title="Dang ky Premium" onPress={() => router.push('/seller/premium')} /> : null}
+        <Text style={styles.cardTitle}>Phi san</Text>
+        <Text style={styles.muted}>San tru {platformFees?.rate ?? 5}% gia hang cua don hoan tat vao tien thanh toan cho ban.</Text>
+        <Text style={styles.bigValue}>{formatVnd(platformFees?.total ?? 0)}</Text>
+        <Text style={styles.muted}>Cho san chuyen khoan: {formatVnd(platformFees?.pendingPayout ?? 0)}</Text>
       </Card>
-      <Card>
-        <Text style={styles.cardTitle}>Auction eligibility</Text>
-        <Text style={styles.muted}>{String(eligibility?.eligible ?? eligibility?.isEligible ?? false) === 'true' ? 'Shop du dieu kien dau gia.' : 'Can premium/du dieu kien de mo dau gia.'}</Text>
-      </Card>
-      {canSeller(user, 'MANAGE_PRODUCTS') ? <AppButton title="Quan ly san pham" onPress={() => router.push('/seller/products')} /> : null}
-      {canSeller(user, 'MANAGE_ORDERS') ? <AppButton title="Quan ly don hang" onPress={() => router.push('/seller/orders')} /> : null}
-      {canSeller(user, 'MANAGE_AUCTIONS') ? <AppButton title="Seller Auctions" onPress={() => router.push('/seller/auctions')} /> : null}
-      {isSellerOwner(user) ? <AppButton title="Quan ly nhan vien" variant="secondary" onPress={() => router.push('/seller/staff')} /> : null}
+      <AppButton title="Quan ly san pham" onPress={() => router.push('/seller/products')} />
+      <AppButton title="Quan ly don hang" onPress={() => router.push('/seller/orders')} />
+      <AppButton title="Seller Auctions" onPress={() => router.push('/seller/auctions')} />
     </AppScreen>
   );
 }
@@ -229,14 +223,12 @@ export function SellerOrdersScreen() {
 
 export function SellerAuctionsScreen() {
   const show = useToastStore((state) => state.show);
-  const [eligibility, setEligibility] = useState<Record<string, unknown> | null>(null);
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [form, setForm] = useState({ productId: '', startPrice: '', minIncrement: '', startTime: '', endTime: '' });
 
   const load = useCallback(async () => {
     try {
-      const [eligible, auctionPayload] = await Promise.all([sellerApi.auctionEligibility(), auctionsApi.list()]);
-      setEligibility(eligible as Record<string, unknown>);
+      const auctionPayload = await auctionsApi.list();
       setAuctions(normalizeList<Auction>(auctionPayload));
     } catch (error) {
       show(getErrorMessage(error), 'error');
@@ -246,8 +238,6 @@ export function SellerAuctionsScreen() {
   useEffect(() => {
     void Promise.resolve().then(load);
   }, [load]);
-
-  const eligible = String(eligibility?.eligible ?? eligibility?.isEligible ?? false) === 'true';
 
   const submit = async () => {
     if (!form.productId || !form.startPrice || !form.minIncrement || !form.startTime || !form.endTime) {
@@ -266,19 +256,12 @@ export function SellerAuctionsScreen() {
 
   return (
     <AppScreen title="Seller Auctions">
-      {!eligible ? (
-        <Card>
-          <Text style={styles.cardTitle}>Auction locked</Text>
-          <Text style={styles.muted}>Shop can premium hoac du dieu kien truoc khi tao phien dau gia.</Text>
-        </Card>
-      ) : (
-        <Section title="Tao auction">
+      <Section title="Tao auction">
           {Object.entries(form).map(([key, value]) => (
             <TextField key={key} label={key} value={value} onChangeText={(next) => setForm((current) => ({ ...current, [key]: next }))} />
           ))}
           <AppButton title="Tao auction" onPress={submit} />
-        </Section>
-      )}
+      </Section>
       {auctions.map((auction) => (
         <Card key={auction.id}>
           <Text style={styles.cardTitle}>{auction.product?.title || auction.productId}</Text>
@@ -286,117 +269,6 @@ export function SellerAuctionsScreen() {
           <StatusBadge label={auction.status || 'ACTIVE'} tone={statusTone(auction.status)} />
         </Card>
       ))}
-    </AppScreen>
-  );
-}
-
-export function SellerPremiumScreen() {
-  const [subscription, setSubscription] = useState<Record<string, unknown> | null>(null);
-  const show = useToastStore((state) => state.show);
-
-  useEffect(() => {
-    sellerApi.subscription().then((payload) => setSubscription(payload as Record<string, unknown>)).catch((error) => show(getErrorMessage(error), 'error'));
-  }, [show]);
-
-  const request = async () => {
-    try {
-      await sellerApi.requestSubscription();
-      show('Da gui request Premium cho admin duyet.', 'success');
-    } catch (error) {
-      show(getErrorMessage(error), 'error');
-    }
-  };
-
-  return (
-    <AppScreen title="Seller Premium">
-      <Card>
-        <Text style={styles.cardTitle}>Current plan</Text>
-        <Text style={styles.bigValue}>{String(subscription?.plan || 'Free')}</Text>
-        <Text style={styles.muted}>Gia: {formatVnd(typeof subscription?.price === 'number' ? subscription.price : undefined)}</Text>
-        <StatusBadge label={String(subscription?.status || 'NONE')} tone={statusTone(String(subscription?.status || ''))} />
-      </Card>
-      <AppButton title="Dang ky Premium" onPress={request} />
-    </AppScreen>
-  );
-}
-
-export function SellerStaffScreen() {
-  const user = useAuthStore((state) => state.user);
-  const show = useToastStore((state) => state.show);
-  const [staff, setStaff] = useState<Record<string, unknown>[]>([]);
-  const [email, setEmail] = useState('');
-  const [selected, setSelected] = useState<SellerPermission[]>(['VIEW_DASHBOARD']);
-
-  const load = useCallback(async () => {
-    try {
-      setStaff(normalizeList<Record<string, unknown>>(await sellerApi.staff()));
-    } catch (error) {
-      show(getErrorMessage(error), 'error');
-    }
-  }, [show]);
-
-  useEffect(() => {
-    void Promise.resolve().then(load);
-  }, [load]);
-
-  if (!isSellerOwner(user)) {
-    return (
-      <AppScreen title="Nhan vien">
-        <EmptyState title="Owner only" body="Staff khong co quyen quan ly nhan vien." />
-      </AppScreen>
-    );
-  }
-
-  const toggle = (permission: SellerPermission) =>
-    setSelected((current) => (current.includes(permission) ? current.filter((item) => item !== permission) : [...current, permission]));
-
-  const invite = async () => {
-    if (!email || selected.length === 0) {
-      show('Nhap email va chon quyen.', 'error');
-      return;
-    }
-    try {
-      await sellerApi.inviteStaff({ email, permissions: selected });
-      setEmail('');
-      await load();
-      show('Da them nhan vien.', 'success');
-    } catch (error) {
-      show(getErrorMessage(error), 'error');
-    }
-  };
-
-  const revoke = async (id: string) => {
-    try {
-      await sellerApi.revokeStaff(id);
-      await load();
-      show('Da revoke nhan vien.', 'success');
-    } catch (error) {
-      show(getErrorMessage(error), 'error');
-    }
-  };
-
-  return (
-    <AppScreen title="Quan ly nhan vien">
-      <TextField label="Email/Gmail nhan vien" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-      <View style={styles.permissionGrid}>
-        {permissions.map((permission) => (
-          <Pressable key={permission} onPress={() => toggle(permission)} style={[styles.permission, selected.includes(permission) && styles.permissionActive]}>
-            <Text style={[styles.permissionText, selected.includes(permission) && styles.permissionTextActive]}>{permission}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <AppButton title="Cap quyen" onPress={invite} />
-      <Section title="Nhan vien active">
-        {staff.length === 0 ? <EmptyState title="Chua co nhan vien" /> : null}
-        {staff.map((member) => (
-          <Card key={String(member.id || member.email)}>
-            <Text style={styles.cardTitle}>{String(member.email || 'Staff')}</Text>
-            <Text style={styles.muted}>{String(member.status || 'ACTIVE')}</Text>
-            <Text style={styles.muted}>{Array.isArray(member.permissions) ? member.permissions.join(', ') : ''}</Text>
-            {member.id ? <AppButton title="Revoke" variant="danger" onPress={() => revoke(String(member.id))} /> : null}
-          </Card>
-        ))}
-      </Section>
     </AppScreen>
   );
 }
@@ -450,30 +322,5 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontWeight: '900',
     fontSize: 16,
-  },
-  permissionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  permission: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  permissionActive: {
-    backgroundColor: colors.terracotta,
-    borderColor: colors.terracotta,
-  },
-  permissionText: {
-    color: colors.ink,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  permissionTextActive: {
-    color: colors.paper,
   },
 });

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { authApi } from '@/api/endpoints';
 import { deleteStoredToken, getStoredToken, setStoredToken } from '@/auth/tokenStorage';
 import { setAuthToken } from '@/api/client';
-import type { SellerPermission, User } from '@/types/domain';
+import type { User } from '@/types/domain';
 
 type AuthState = {
   user: User | null;
@@ -121,26 +121,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 }));
 
 export function hasSellerAccess(user: User | null) {
-  return Boolean(
-    (user?.role === 'SELLER' && user.sellerStatus === 'APPROVED') ||
-      (user?.sellerStaffAccess?.status === 'ACTIVE'),
-  );
+  return Boolean(user?.role === 'SELLER' && user.sellerStatus === 'APPROVED');
 }
 
 export function sellerIdFor(user: User | null) {
-  return user?.sellerStaffAccess?.status === 'ACTIVE'
-    ? user.sellerStaffAccess.sellerId
-    : user?.sellerProfile?.id || user?.sellerProfile?.userId || user?.id || '';
-}
-
-export function canSeller(user: User | null, permission: SellerPermission) {
-  if (user?.role === 'SELLER' && user.sellerStatus === 'APPROVED') {
-    return true;
-  }
-
-  return Boolean(user?.sellerStaffAccess?.status === 'ACTIVE' && user.sellerStaffAccess.permissions.includes(permission));
-}
-
-export function isSellerOwner(user: User | null) {
-  return user?.role === 'SELLER' && user.sellerStatus === 'APPROVED' && !user.sellerStaffAccess;
+  return user?.sellerProfile?.id || user?.sellerProfile?.userId || user?.id || '';
 }

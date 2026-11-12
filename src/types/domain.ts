@@ -1,18 +1,5 @@
 export type UserRole = 'BUYER' | 'SELLER' | 'ADMIN' | string;
 
-export type SellerPermission =
-  | 'VIEW_DASHBOARD'
-  | 'MANAGE_PRODUCTS'
-  | 'MANAGE_ORDERS'
-  | 'MANAGE_AUCTIONS';
-
-export type SellerStaffAccess = {
-  id?: string;
-  sellerId: string;
-  status: 'ACTIVE' | 'PENDING' | 'REVOKED' | string;
-  permissions: SellerPermission[];
-};
-
 export type User = {
   id: string;
   email: string;
@@ -24,7 +11,6 @@ export type User = {
   isEmailVerified?: boolean;
   emailVerified?: boolean;
   sellerStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
-  sellerStaffAccess?: SellerStaffAccess | null;
   sellerProfile?: SellerProfile | null;
 };
 
@@ -126,14 +112,6 @@ export type Auction = {
   startTime?: string;
   endTime?: string;
   status?: string;
-};
-
-export type Subscription = {
-  id?: string;
-  plan?: string;
-  status?: string;
-  price?: number;
-  expiresAt?: string;
 };
 
 export type ApiList<T> = T[] | { data?: T[]; items?: T[]; products?: T[]; orders?: T[]; results?: T[] };

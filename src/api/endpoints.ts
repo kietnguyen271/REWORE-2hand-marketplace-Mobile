@@ -1,5 +1,5 @@
 import { api, dataOf } from '@/api/client';
-import type { Address, Auction, CartItem, Order, Product, SellerPermission, Subscription, User, WishlistItem } from '@/types/domain';
+import type { Address, Auction, CartItem, Order, Product, User, WishlistItem } from '@/types/domain';
 
 export type LoginResult =
   | { success?: true; token?: string; accessToken?: string; user?: User }
@@ -47,12 +47,7 @@ export const ordersApi = {
 };
 
 export const sellerApi = {
-  auctionEligibility: () => api.get('/api/seller/auction-eligibility').then(dataOf),
-  subscription: () => api.get<Subscription>('/api/seller/subscription').then(dataOf),
-  requestSubscription: () => api.post('/api/seller/subscription-requests').then(dataOf),
-  staff: () => api.get('/api/seller/staff').then(dataOf),
-  inviteStaff: (payload: { email: string; permissions: SellerPermission[] }) => api.post('/api/seller/staff', payload).then(dataOf),
-  revokeStaff: (id: string) => api.delete(`/api/seller/staff/${id}`).then(dataOf),
+  stats: () => api.get('/api/seller/stats').then(dataOf),
 };
 
 export const auctionsApi = {
